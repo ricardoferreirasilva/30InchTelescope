@@ -1,0 +1,6 @@
+bin/*
+obj/*
+AstroClock.suo
+AstroClock.csproj.user
+AstroClock.v12.suo
+*.suo
