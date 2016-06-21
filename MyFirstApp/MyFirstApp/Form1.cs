@@ -436,9 +436,6 @@ namespace MyFirstApp
             }
 
             clientSocket.Close();
-            serverSocket.Stop();
-            Console.WriteLine(" >> exit");
-            Console.ReadLine();
         }
         private void updateValues(int raf_hour)
         {
