@@ -20,11 +20,14 @@ namespace MyFirstApp
     public partial class Form1 : Form
     {
         // Current point coordenates
-        RightAscension currentRightAscension;
-        Declination currentDeclination;
+        float currRA;
+        float currDEC;
         // Expected point coordenates, the coordenates de screen is telling us to go to.
-        RightAscension expectedRightAscension;
-        Declination expectedDeclination;
+        float newRA;
+        float newDEC;
+        // Degrees need to adjust the telescope to new position
+        float deltaRA;
+        float deltaDEC;
         // Degrees need to adjust the telescope to new position
         float degreesRA;
         float degreesDEC;
@@ -43,17 +46,21 @@ namespace MyFirstApp
         //bool value
         static bool encodersConnected = false;
         // Values of serial ports.
-        static public int encoder1_value = 0;
-        static public int encoder2_value = 0;
-        static public int encoder3_value = 0;
+        static public int encoder1_curr = 0;
+        static public int encoder2_curr = 0;
+        static public int encoder3_curr = 0;
         //Calculated encoder values
-        static public int encoder1_supposed = -10000;
-        static public int encoder2_supposed = -10000;
-        static public int encoder3_supposed = -10000;
+        static public int encoder1_new = 0;
+        static public int encoder2_new = 0;
+        static public int encoder3_new = 0;
         //Value of conversion to encoder units.
-        static public double unitFactorRA1 = 0.4854541944;
-        static public double unitFactorRA2 = 0.4867266667;
-        static public double unitFactorDEC = 0.1857816206;
+        // Conversion units
+        //static public double unitFactorRA1 = 0.4854541944;
+        //static public double unitFactorRA2 = 0.4867266667;
+        //static public double unitFactorDEC = 0.1857816206;
+        static public double unitFactorRA1 = 1586.54;
+        static public double unitFactorRA2 = 0;
+        static public double unitFactorDEC = 669.049;
         //Astro Clock and sidereal time related.
         AstroClock.ClockForm astroform = new AstroClock.ClockForm();
         //Sidereal Time.
@@ -93,99 +100,77 @@ namespace MyFirstApp
         private void button1_Click(object sender, EventArgs e)
         {
             bool canCalculate = true;
-            if(currentDeclination == null || currentRightAscension == null)
+
+            //If text boxes for RA are filled
+            if (text_ra_h.TextLength > 0 && text_ra_m.TextLength > 0 && text_ra_s.TextLength > 0)
             {
-                canCalculate = false;
-                richTextBox_result.AppendText("No reference starting point. Please initialize.\n");
-            }
-            if(text_ra_h.TextLength > 0 && text_ra_m.TextLength >0 && text_ra_s.TextLength>0)
-            {
-                TimeSpan ra_time = TimeSpan.Parse(text_ra_h.Text + ":" + text_ra_m.Text + ":" + text_ra_s.Text);
-                TimeSpan difference = siderealTime.Subtract(ra_time);
-                double hoursDifference = difference.TotalHours;
-                richTextBox_result.AppendText(String.Format("{0:0.00}", hoursDifference) + " hours difference. 1\n");
-                //Fixing hours.
-                if (hoursDifference <= -8) hoursDifference += 24;
-                else if (hoursDifference >= 8) hoursDifference -= 24;
-                richTextBox_result.AppendText(String.Format("{0:0.00}", hoursDifference) + " hours difference.(Fixed)  \n");
-                if (hoursDifference >= 8)
-                {
-                    richTextBox_result.AppendText("Chosen right ascension is not visible.\n");
-                    canCalculate = false;
-                }
                 int hours = Convert.ToInt16(text_ra_h.Text);
-                float minutes = float.Parse(text_ra_m.Text, CultureInfo.InvariantCulture);
-                float seconds = float.Parse(text_ra_s.Text, CultureInfo.InvariantCulture);
-                expectedRightAscension = new RightAscension(hours, minutes, seconds);
+                int minutes = Convert.ToInt16(text_ra_m.Text);
+                int seconds = Convert.ToInt16(text_ra_s.Text);
+                newRA = RA2Degrees(hours, minutes, seconds);
             }
             else
             {
                 canCalculate = false;
                 richTextBox_result.AppendText("Invalid input in RA.\n");
             }
+
+            //If text boxes for DEC are filled.
             if (text_dec_degrees.TextLength > 0 && text_dec_arcmins.TextLength > 0 && text_dec_arcsecs.TextLength > 0)
             {
+                
                 int degrees = Convert.ToInt16(text_dec_degrees.Text);
-                float arcmins = float.Parse(text_dec_arcmins.Text, CultureInfo.InvariantCulture);
-                float arcsecs = float.Parse(text_dec_arcsecs.Text, CultureInfo.InvariantCulture);
-                expectedDeclination = new Declination(degrees, arcmins, arcsecs);
+                int minutes = Convert.ToInt16(text_dec_arcmins.Text);
+                int seconds = Convert.ToInt16(text_dec_arcsecs.Text);
+                newDEC = DEC2Degrees(degrees, minutes, seconds);
             }
             else
             {
                 canCalculate = false;
                 richTextBox_result.AppendText("Invalid input in DEC.\n");
             }
-            if(canCalculate)
+
+            // Now compute deltaRA and deltaDEC
+            if (canCalculate)
             {
                 richTextBox_result.AppendText("[LOG]: SUCCESS\n");
                 richTextBox_result.AppendText("---> POINT COORDINATES (degrees).\n");
-                richTextBox_result.AppendText("RA: " + expectedRightAscension.degrees + "\n");
-                richTextBox_result.AppendText("DEC: " + expectedDeclination.degreesPrecision + "\n");
+                richTextBox_result.AppendText("RA : " + newRA + "\n");
+                richTextBox_result.AppendText("DEC: " + newDEC + "\n");
+
                 // Calculating the deferences in degrees of the current position and desired position.
-                degreesRA = expectedRightAscension.degrees - currentRightAscension.degrees;
-                degreesDEC = expectedDeclination.degreesPrecision - currentDeclination.degreesPrecision;
-                //richTextBox_result.AppendText("---> ADJUST LEVELS (degrees)\n");
-                //richTextBox_result.AppendText("-> RA: " + degreesRA + "\n");
-                //richTextBox_result.AppendText("-> DEC: " + degreesDEC + "\n");
-                //Making adjustments to get the smallest correction angle.
-                if (degreesRA < -180) degreesRA += 360;
-                else if (degreesRA > 180) degreesRA -= 360;
-                if (degreesDEC < -180) degreesRA += 360;
-                else if (degreesDEC > 180) degreesRA -= 360;
-                richTextBox_result.AppendText("---> ADJUST LEVELS (degrees)\n");
-                richTextBox_result.AppendText("-> RA: " + degreesRA + "\n");
-                richTextBox_result.AppendText("-> DEC: " + degreesDEC + "\n");
+                deltaRA = newRA - currRA;
+                if (deltaRA > 180.0)
+                    deltaRA = deltaRA - 360;
+                if (deltaRA < -180.0)
+                    deltaRA = deltaRA + 360;
+                deltaDEC = newDEC - currDEC;
 
-                float secondsToAdjustRA = expectedRightAscension.totalSeconds - currentRightAscension.totalSeconds;
-                float secondsToAdjustDEC = expectedDeclination.totalSeconds - currentDeclination.totalSeconds;
-                //richTextBox_result.AppendText("-> SECONDS TO ADJUST: " + secondsToAdjust + "\n");
-                if (secondsToAdjustRA >= 12 * 60 * 60)
-                {
-                    secondsToAdjustRA = - (24 * 60 * 60 - secondsToAdjustRA);
-                }
-                richTextBox_result.AppendText("-> Seconds to Adjust on RA axis. " + secondsToAdjustRA + "\n");
-                richTextBox_result.AppendText("-> Seconds(arc) to Adjust on DEC axis. " + secondsToAdjustDEC + "\n");
+                richTextBox_result.AppendText("---> DELTAS (degrees).\n");
+                richTextBox_result.AppendText("deltaRA : " + deltaRA + "\n");
+                richTextBox_result.AppendText("deltaDEC: " + deltaDEC + "\n");
 
-                encoder1_supposed = (encoder1_value + (int)(secondsToAdjustRA*unitFactorRA1));
-                encoder2_supposed = (encoder2_value + (int)(secondsToAdjustRA * unitFactorRA2));
-                encoder3_supposed = (encoder3_value + (int)(secondsToAdjustDEC * unitFactorDEC));
 
-                //Encoder values
-                expected1_text.Text = ""+encoder1_supposed;
-                expected2_text.Text = "" + encoder2_supposed;
-                expected3_text.Text = "" + encoder3_supposed;
+                //Updating global variables with new values.
+                encoder1_new = encoder1_curr + (int)(deltaRA * unitFactorRA1);
+                encoder2_new = encoder2_curr + (int)(deltaRA * unitFactorRA2);
+                encoder3_new = encoder3_curr + (int)(deltaDEC * unitFactorDEC);
+
+                //Updating UI
+                expected1_text.Text = "" + encoder1_new;
+                expected2_text.Text = "" + encoder2_new;
+                expected3_text.Text = "" + encoder3_new;
             }
             else
             {
                 richTextBox_result.AppendText("[LOG]: ERROR");
             }
-            
         }
         //When initiate button is clicked.
         private void button_init_Click(object sender, EventArgs e)
         {       
-            currentRightAscension = new RightAscension(siderealTime.Hours,siderealTime.Minutes,+siderealTime.Seconds);
-            currentDeclination = new Declination(90, 0, 0);
+            currRA = RA2Degrees(siderealTime.Hours,siderealTime.Minutes,+siderealTime.Seconds);
+            currDEC = DEC2Degrees(90, 0, 0);
             richTextBox_result.AppendText("Aligned to the Celestial Pole.\n");
         }
         //When the clear button is clicked.
@@ -196,8 +181,8 @@ namespace MyFirstApp
         //When we press sync
         private void button_sync_Click(object sender, EventArgs e)
         {
-            currentRightAscension = expectedRightAscension;
-            currentDeclination = expectedDeclination;
+            currDEC = newRA;
+            currDEC = newDEC;
             expected1_text.Text = "";
             expected2_text.Text = "";
             expected3_text.Text = "";
@@ -219,10 +204,10 @@ namespace MyFirstApp
         //Update encoder values in form function
         private void updateEncoders(object sender, EventArgs e)
         {
-            encoder1_text.Text = "" + encoder1_value;
-            encoder2_text.Text = "" + encoder2_value;
-            encoder3_text.Text = "" + encoder3_value;
-            if(Math.Abs(encoder1_supposed - encoder1_value) <= 500)
+            encoder1_text.Text = "" + encoder1_curr;
+            encoder2_text.Text = "" + encoder2_curr;
+            encoder3_text.Text = "" + encoder3_curr;
+            if(Math.Abs(encoder1_new - encoder1_curr) <= 500)
             {
                 panel1.BackColor = Color.Green;
             }
@@ -230,7 +215,7 @@ namespace MyFirstApp
             {
                 panel1.BackColor = Color.Red;
             }
-            if (Math.Abs(encoder2_supposed - encoder1_value) <= 500)
+            if (Math.Abs(encoder2_new - encoder1_curr) <= 500)
             {
                 panel1.BackColor = Color.Green;
             }
@@ -238,7 +223,7 @@ namespace MyFirstApp
             {
                 panel1.BackColor = Color.Red;
             }
-            if (Math.Abs(encoder3_supposed - encoder1_value) <= 500)
+            if (Math.Abs(encoder3_new - encoder1_curr) <= 500)
             {
                 panel1.BackColor = Color.Green;
             }
@@ -334,15 +319,15 @@ namespace MyFirstApp
                 System.Diagnostics.Debug.Write("[Parsed]: "+split[0]+" : " + data_int + "\n");
                 if(split[0] == "E1")
                 {
-                    encoder1_value = data_int;
+                    encoder1_curr = data_int;
                 }
                 else if (split[0] == "E2")
                 {
-                    encoder2_value = data_int;
+                    encoder2_curr = data_int;
                 }
                 else if (split[0] == "E3")
                 {
-                    encoder3_value = data_int;
+                    encoder3_curr = data_int;
                 }
             }
             else
@@ -441,48 +426,15 @@ namespace MyFirstApp
         {
             text_ra_h.Text = "" + raf_hour;
         }
-    }
-    //A class to represent a right ascension value.
-    public class RightAscension
-    {
-        //Hours,Minutes,Seconds Format for RightAscension
-        int hours;
-        float minutes;
-        float seconds;
-        //Deegres format for RightAscension
-        public float degrees;
-        public float totalSeconds;
-        //Constructor
-        public RightAscension(int hours,float minutes,float seconds)
+        float RA2Degrees(int hours, int minutes, int seconds)
         {
-            this.hours = hours;
-            this.minutes = minutes;
-            this.seconds = seconds;
-            // 24 hours -> 360 deegres, so 1 hour -> 15 degrees.
-            // We convert the RA to hours and multiply by 15.
-            degrees = hours*15 + (minutes / 60)*15 + (seconds / 3600) * 15;
-            totalSeconds = (hours * 60 * 60 + minutes * 60 + seconds);
+            return ((float)hours + ((float)minutes / 60) + ((float)seconds / 3600)) * 15;
         }
 
-    }
-    //A class to represent a declination value.
-    public class Declination
-    {
-        //Degrees,Minutes of arc,Seconds of arc format for declination
-        int degrees;
-        float minutesArc;
-        float secondsArc;
-        // Degrees format for declination
-        public float degreesPrecision;
-        public float totalSeconds;
-        public Declination(int degrees,float minutesArc,float secondsArc)
+        float DEC2Degrees(int degrees, int minutes, int seconds)
         {
-            this.degrees = degrees;
-            this.minutesArc = minutesArc;
-            this.secondsArc = secondsArc;
-            // 60 Minutes of Arc -> 1 degree and 60 seconds of Arc -> 1 Minute of Arc
-            degreesPrecision = degrees + (minutesArc/ 60) + (secondsArc/ 60 / 60);
-            totalSeconds = degrees * 60 * 60 + minutesArc * 60 + secondsArc;
+            return (float)degrees + ((float)minutes / 60) + ((float)seconds / 3600);
         }
+
     }
 }

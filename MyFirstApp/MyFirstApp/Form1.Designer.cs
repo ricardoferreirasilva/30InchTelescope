@@ -306,27 +306,27 @@
             this.encoder1_title.AutoSize = true;
             this.encoder1_title.Location = new System.Drawing.Point(390, 43);
             this.encoder1_title.Name = "encoder1_title";
-            this.encoder1_title.Size = new System.Drawing.Size(59, 13);
+            this.encoder1_title.Size = new System.Drawing.Size(31, 13);
             this.encoder1_title.TabIndex = 28;
-            this.encoder1_title.Text = "Encoder 1:";
+            this.encoder1_title.Text = "RA1:";
             // 
             // encoder2_title
             // 
             this.encoder2_title.AutoSize = true;
             this.encoder2_title.Location = new System.Drawing.Point(390, 74);
             this.encoder2_title.Name = "encoder2_title";
-            this.encoder2_title.Size = new System.Drawing.Size(59, 13);
+            this.encoder2_title.Size = new System.Drawing.Size(31, 13);
             this.encoder2_title.TabIndex = 29;
-            this.encoder2_title.Text = "Encoder 2:";
+            this.encoder2_title.Text = "RA2:";
             // 
             // encoder3_title
             // 
             this.encoder3_title.AutoSize = true;
             this.encoder3_title.Location = new System.Drawing.Point(390, 108);
             this.encoder3_title.Name = "encoder3_title";
-            this.encoder3_title.Size = new System.Drawing.Size(59, 13);
+            this.encoder3_title.Size = new System.Drawing.Size(32, 13);
             this.encoder3_title.TabIndex = 30;
-            this.encoder3_title.Text = "Encoder 3:";
+            this.encoder3_title.Text = "DEC:";
             // 
             // encoder1_text
             // 
